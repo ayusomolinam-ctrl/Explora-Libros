@@ -20,14 +20,35 @@ class HttpError extends Error {
   }
 }
 
+class NetworkError extends Error {
+  constructor(cause) {
+    super("No fue posible completar la conexión con Open Library.");
+    this.name = "NetworkError";
+    this.cause = cause;
+  }
+}
+
+class ApiDataError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "ApiDataError";
+  }
+}
+
 function showMessage(text, type = "info") {
   userMessage.textContent = text;
   userMessage.classList.remove("info", "error");
   userMessage.classList.add(type);
 }
 
+function clearMessage() {
+  userMessage.textContent = "";
+  userMessage.classList.remove("info", "error");
+}
+
 function setSearchingState(searching) {
   isSearching = searching;
+  searchInput.disabled = searching;
   searchButton.disabled = searching;
   searchButton.textContent = searching ? "Buscando..." : originalButtonText;
   searchForm.setAttribute("aria-busy", String(searching));
@@ -50,7 +71,7 @@ function createFallbackCover(title) {
 function createBookCover(book, title) {
   const coverId = Number(book.cover_i);
 
-  if (!Number.isFinite(coverId)) {
+  if (!Number.isInteger(coverId) || coverId <= 0) {
     return createFallbackCover(title);
   }
 
@@ -180,7 +201,7 @@ function showSearchError(error) {
     return;
   }
 
-  if (error instanceof TypeError) {
+  if (error instanceof NetworkError) {
     showMessage(
       "No fue posible conectar con Open Library. Revisa tu conexión a internet e inténtalo de nuevo.",
       "error"
@@ -188,8 +209,16 @@ function showSearchError(error) {
     return;
   }
 
+  if (error instanceof ApiDataError) {
+    showMessage(
+      "Open Library devolvió información con un formato inesperado. Inténtalo de nuevo más tarde.",
+      "error"
+    );
+    return;
+  }
+
   showMessage(
-    "Ocurrió un error al procesar la información recibida. Inténtalo de nuevo.",
+    "Ocurrió un error interno al procesar la búsqueda. Inténtalo de nuevo.",
     "error"
   );
 }
@@ -203,23 +232,45 @@ async function searchBooks(searchTerm) {
   showMessage("Buscando libros en Open Library...", "info");
 
   try {
-    const response = await fetch(requestUrl, {
-      headers: {
-        Accept: "application/json",
-      },
-    });
+    let response;
+
+    try {
+      response = await fetch(requestUrl, {
+        headers: {
+          Accept: "application/json",
+        },
+      });
+    } catch (error) {
+      throw new NetworkError(error);
+    }
 
     if (!response.ok) {
       throw new HttpError(response.status);
     }
 
-    const data = await response.json();
+    let data;
 
-    if (!Array.isArray(data.docs)) {
-      throw new Error("La respuesta de la API no contiene una lista de libros.");
+    try {
+      data = await response.json();
+    } catch {
+      throw new ApiDataError("La respuesta no contiene JSON válido.");
+    }
+
+    if (!data || typeof data !== "object" || !Array.isArray(data.docs)) {
+      throw new ApiDataError(
+        "La respuesta de la API no contiene una lista de libros."
+      );
     }
 
     const books = data.docs.slice(0, MAX_RESULTS);
+
+    if (
+      !books.every(
+        (book) => book && typeof book === "object" && !Array.isArray(book)
+      )
+    ) {
+      throw new ApiDataError("La lista contiene un libro con formato inválido.");
+    }
 
     if (books.length === 0) {
       showMessage(
@@ -246,6 +297,13 @@ async function searchBooks(searchTerm) {
     setSearchingState(false);
   }
 }
+
+searchInput.addEventListener("input", () => {
+  if (!searchInput.value.trim()) {
+    bookResults.replaceChildren();
+    clearMessage();
+  }
+});
 
 searchForm.addEventListener("submit", (event) => {
   event.preventDefault();
