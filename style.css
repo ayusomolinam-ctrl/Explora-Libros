@@ -285,6 +285,51 @@ h2 {
   font-size: 0.9rem;
 }
 
+.book-link {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 2.75rem;
+  margin-top: 1rem;
+  padding: 0.6rem 1rem;
+  border: 2px solid var(--color-plum);
+  border-radius: 0.65rem;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-plum-dark);
+  background-color: var(--color-lilac-light);
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+  transition: background-color 160ms ease, color 160ms ease,
+    box-shadow 160ms ease, transform 160ms ease;
+}
+
+.book-link:hover {
+  color: var(--color-cream);
+  background-color: var(--color-plum);
+  box-shadow: 0 5px 14px rgb(63 25 56 / 20%);
+  transform: translateY(-1px);
+}
+
+.book-link:focus-visible {
+  outline: 3px solid var(--color-plum-dark);
+  outline-offset: 3px;
+  color: var(--color-cream);
+  background-color: var(--color-plum);
+}
+
+.book-link:active {
+  transform: translateY(0);
+}
+
+.book-link-unavailable {
+  margin: 1rem 0 0;
+  color: var(--color-text-soft);
+  font-size: 0.9rem;
+  font-style: italic;
+}
+
 @media (max-width: 37.5rem) {
   body > header {
     padding-block: 3rem;
@@ -304,6 +349,10 @@ h2 {
   }
 
   #book-search-form button {
+    width: 100%;
+  }
+
+  .book-link {
     width: 100%;
   }
 }
